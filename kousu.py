@@ -17,6 +17,8 @@ def startCounting():
     global isCounting
     global timeCountStarted
     global taskName
+    global taskNameHistory
+    global taskNameHistoryTop
 
     root.geometry(f"{WINDOW_COUNTING_WIDTH}x{WINDOW_COUNTING_HEIGHT}")
     # ステータスバー表示
@@ -34,8 +36,10 @@ def startCounting():
     isCounting = True
     taskName = entryTaskName.get()
     labelTaskName["text"] = taskName
+    taskNameHistory[taskNameHistoryTop] = taskName
+    taskNameHistoryTop = (taskNameHistoryTop + 1) % 5
 
-    # 時刻更新を500ms五に予約
+    # 時刻更新を500ms後に予約
     root.after(500, refreshCounter)
 
 def refreshCounter():
@@ -57,7 +61,12 @@ def refreshCounter():
     if isCounting:
         root.after(500, refreshCounter)
     
-
+def refreshTaskHistories():
+    global taskNameHistory
+    global taskNameHistoryTop
+    for i in range(5):
+        taskNameHistoryTop = 4 if (taskNameHistoryTop == 0) else (taskNameHistoryTop-1)
+        labelTaskHistory[i]["text"] = taskNameHistory[taskNameHistoryTop]
 
 def stopCounting():
     global isCounting
@@ -69,6 +78,7 @@ def stopCounting():
     root.attributes("-topmost", False)
     frameStandby.tkraise()
     isCounting = False
+    refreshTaskHistories()
 
     timeDiff = datetime.now() - timeCountStarted
     hour, amari = divmod(timeDiff.seconds, 3600)
@@ -86,7 +96,8 @@ if __name__ == '__main__':
     timeCountStarted = datetime.now()
     isCounting = False
     taskName = ""
-
+    taskNameHistory = [0]*5
+    taskNameHistoryTop = 0
 
     # 待機状態のフレーム
     frameStandby = tk.Frame(root, width=WINDOW_STANDBY_WIDTH, height=WINDOW_STANDBY_HEIGHT)
@@ -97,6 +108,10 @@ if __name__ == '__main__':
     buttonExit.place(x=0,y=0)
     entryTaskName = tk.Entry(frameStandby, width=35)
     entryTaskName.place(x=10, y=40)
+    labelTaskHistory = [0] * 5
+    for i in range(5):
+        labelTaskHistory[i] = tk.Label(frameStandby, text="-")
+        labelTaskHistory[i].place(x=10, y=120+20*i)
 
     # カウント状態のフレーム
     frameCounting = tk.Frame(root, width=WINDOW_COUNTING_WIDTH, height=WINDOW_COUNTING_HEIGHT)
