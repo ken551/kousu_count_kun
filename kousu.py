@@ -1,5 +1,6 @@
 import tkinter as tk
-import datetime
+from tkinter import messagebox
+from datetime import *
 
 # ウィンドウサイズ設定
 WINDOW_STANDBY_WIDTH = 400
@@ -11,6 +12,10 @@ SYSTEM_FONT_FAMILY = "Arial"
 SYSTEM_FONT_SIZE = 30
 
 def startCounting():
+    global labelTime
+    global isCounting
+    global timeCountStarted
+
     root.geometry(f"{WINDOW_COUNTING_WIDTH}x{WINDOW_COUNTING_HEIGHT}")
     # ステータスバー表示
     root.overrideredirect(1)
@@ -19,31 +24,50 @@ def startCounting():
     root.attributes("-topmost", True)
     frameCounting.tkraise()
 
-    global labelTime
-    timeNow = datetime.datetime.now()
-    labelTime["text"] = timeNow.strftime("%H:%I:%S")
+    # 現在時刻を取得
+    timeCountStarted = datetime.now()
+
+    timeNow = datetime.now()
+    labelTime["text"] = timeNow.strftime("00:00:00")
+    isCounting = True
     root.after(500, refreshCounter)
 
 def refreshCounter():
 
     global isColonDisplayed
+    global timeCountStarted
+
+    # 現在時刻を取得
+    timeDiff = datetime.now()  - timeCountStarted
+    hour, amari = divmod(timeDiff.seconds, 3600)
+    min, sec = divmod(amari, 60 )
+
     if isColonDisplayed:
-        labelTime["text"] = datetime.datetime.now().strftime("%H %I %S")
+        labelTime["text"] = f"{str(hour).zfill(2)} {str(min).zfill(2)} {str(sec).zfill(2)}"
         isColonDisplayed = False
     else:
-        labelTime["text"] = datetime.datetime.now().strftime("%H:%I:%S")
+        labelTime["text"] = f"{str(hour).zfill(2)}:{str(min).zfill(2)}:{str(sec).zfill(2)}"
         isColonDisplayed = True
-    root.after(500, refreshCounter)
+    if isCounting:
+        root.after(500, refreshCounter)
     
 
 
 def stopCounting():
+    global isCounting
+
     root.geometry(f"{WINDOW_STANDBY_WIDTH}x{WINDOW_STANDBY_HEIGHT}")
     # ステータスバー表示
     root.overrideredirect(0)
     # 最前面固定解除
     root.attributes("-topmost", False)
     frameStandby.tkraise()
+    isCounting = False
+
+    timeDiff = datetime.now() - timeCountStarted
+    hour, amari = divmod(timeDiff.seconds, 3600)
+    min, sec = divmod(amari, 60)
+    messagebox.showinfo("stop", f"稼働時間は{hour}時間{min}分です")
 
 def onExit():
     root.destroy()
@@ -53,6 +77,8 @@ if __name__ == '__main__':
     root.geometry(f"{WINDOW_STANDBY_WIDTH}x{WINDOW_STANDBY_HEIGHT}")
 
     isColonDisplayed = True
+    timeCountStarted = datetime.now()
+    isCounting = False
 
     # 待機状態のフレーム
     frameStandby = tk.Frame(root, width=WINDOW_STANDBY_WIDTH, height=WINDOW_STANDBY_HEIGHT)
