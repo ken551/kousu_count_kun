@@ -9,7 +9,8 @@ WINDOW_COUNTING_WIDTH = 160
 WINDOW_COUNTING_HEIGHT = 120
 
 SYSTEM_FONT_FAMILY = "Arial"
-SYSTEM_FONT_SIZE = 30
+SYSTEM_TIME_FONT_SIZE = 30
+SYSTEM_NORMAL_FONT_SIZE = 8
 
 def startCounting():
     global labelTime
@@ -32,6 +33,9 @@ def startCounting():
     labelTime["text"] = timeNow.strftime("00:00:00")
     isCounting = True
     taskName = entryTaskName.get()
+    labelTaskName["text"] = taskName
+
+    # 時刻更新を500ms五に予約
     root.after(500, refreshCounter)
 
 def refreshCounter():
@@ -83,6 +87,7 @@ if __name__ == '__main__':
     isCounting = False
     taskName = ""
 
+
     # 待機状態のフレーム
     frameStandby = tk.Frame(root, width=WINDOW_STANDBY_WIDTH, height=WINDOW_STANDBY_HEIGHT)
     isStatusBarShown = True
@@ -90,15 +95,17 @@ if __name__ == '__main__':
     btnToggleStatusBar.place(x=160,y=70)
     buttonExit = tk.Button(frameStandby,text="exit", command=onExit)
     buttonExit.place(x=0,y=0)
-    entryTaskName = tk.Entry(frameStandby, width=30)
+    entryTaskName = tk.Entry(frameStandby, width=35)
     entryTaskName.place(x=10, y=40)
 
     # カウント状態のフレーム
     frameCounting = tk.Frame(root, width=WINDOW_COUNTING_WIDTH, height=WINDOW_COUNTING_HEIGHT)
     buttonStop = tk.Button(frameCounting, text="停止", command=stopCounting )
     buttonStop.place(x=0,y=0)
-    labelTime = tk.Label(frameCounting, text="00:00", font=f"{SYSTEM_FONT_FAMILY} {SYSTEM_FONT_SIZE}", anchor="n")
+    labelTime = tk.Label(frameCounting, text="00:00", font=f"{SYSTEM_FONT_FAMILY} {SYSTEM_TIME_FONT_SIZE}", anchor="n")
     labelTime.place(x=0,y=50)
+    labelTaskName = tk.Label(frameCounting, text="", font=f"{SYSTEM_FONT_FAMILY} {SYSTEM_NORMAL_FONT_SIZE}")
+    labelTaskName.place(x=10,y=25)
 
     frameCounting.place(x=0, y=0)
     frameStandby.place(x=0, y=0)
