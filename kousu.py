@@ -15,6 +15,7 @@ def startCounting():
     global labelTime
     global isCounting
     global timeCountStarted
+    global taskName
 
     root.geometry(f"{WINDOW_COUNTING_WIDTH}x{WINDOW_COUNTING_HEIGHT}")
     # ステータスバー表示
@@ -30,6 +31,7 @@ def startCounting():
     timeNow = datetime.now()
     labelTime["text"] = timeNow.strftime("00:00:00")
     isCounting = True
+    taskName = entryTaskName.get()
     root.after(500, refreshCounter)
 
 def refreshCounter():
@@ -67,7 +69,7 @@ def stopCounting():
     timeDiff = datetime.now() - timeCountStarted
     hour, amari = divmod(timeDiff.seconds, 3600)
     min, sec = divmod(amari, 60)
-    messagebox.showinfo("stop", f"稼働時間は{hour}時間{min}分です")
+    messagebox.showinfo("stop", f"作業:{taskName}\n稼働時間は{hour}時間{min}分です")
 
 def onExit():
     root.destroy()
@@ -79,14 +81,17 @@ if __name__ == '__main__':
     isColonDisplayed = True
     timeCountStarted = datetime.now()
     isCounting = False
+    taskName = ""
 
     # 待機状態のフレーム
     frameStandby = tk.Frame(root, width=WINDOW_STANDBY_WIDTH, height=WINDOW_STANDBY_HEIGHT)
     isStatusBarShown = True
     btnToggleStatusBar = tk.Button(frameStandby, text="開始", command=startCounting)
-    btnToggleStatusBar.place(x=10,y=10)
+    btnToggleStatusBar.place(x=160,y=70)
     buttonExit = tk.Button(frameStandby,text="exit", command=onExit)
-    buttonExit.place(x=100,y=100)
+    buttonExit.place(x=0,y=0)
+    entryTaskName = tk.Entry(frameStandby, width=30)
+    entryTaskName.place(x=10, y=40)
 
     # カウント状態のフレーム
     frameCounting = tk.Frame(root, width=WINDOW_COUNTING_WIDTH, height=WINDOW_COUNTING_HEIGHT)
