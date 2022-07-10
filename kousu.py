@@ -12,7 +12,7 @@ SYSTEM_FONT_FAMILY = "Arial"
 SYSTEM_TIME_FONT_SIZE = 30
 SYSTEM_NORMAL_FONT_SIZE = 8
 
-def startCounting():
+def startCounting(taskNameArg):
     global labelTime
     global isCounting
     global timeCountStarted
@@ -25,7 +25,7 @@ def startCounting():
     root.overrideredirect(1)
     isStatusBarShown = False
     # 最前面固定
-   # root.attributes("-topmost", True)
+    # root.attributes("-topmost", True)
     frameCounting.tkraise()
 
     # 現在時刻を取得
@@ -34,13 +34,18 @@ def startCounting():
     timeNow = datetime.now()
     labelTime["text"] = timeNow.strftime("00:00:00")
     isCounting = True
-    taskName = entryTaskName.get()
+    taskName = taskNameArg # entryTaskName.get()
     labelTaskName["text"] = taskName
     taskNameHistory[taskNameHistoryTop] = taskName
     taskNameHistoryTop = (taskNameHistoryTop + 1) % 5
 
     # 時刻更新を500ms後に予約
     root.after(500, refreshCounter)
+
+def startCountingFromHistory(i):
+    def x(my_i = i):
+        startCounting(labelTaskHistory[i]["text"])
+    return x
 
 def refreshCounter():
 
@@ -104,8 +109,6 @@ if __name__ == '__main__':
     # 待機状態のフレーム
     frameStandby = tk.Frame(root, width=WINDOW_STANDBY_WIDTH, height=WINDOW_STANDBY_HEIGHT)
     isStatusBarShown = True
-    btnToggleStatusBar = tk.Button(frameStandby, text="開始", command=startCounting)
-    btnToggleStatusBar.place(x=160,y=70)
     buttonExit = tk.Button(frameStandby,text="exit", command=onExit)
     buttonExit.place(x=0,y=0)
     entryTaskName = tk.Entry(frameStandby, width=35)
@@ -115,8 +118,13 @@ if __name__ == '__main__':
     for i in range(5):
         labelTaskHistory[i] = tk.Label(frameStandby, text="-")
         labelTaskHistory[i].place(x=10, y=120+20*i)
-        btnTaskHistory[i] = tk.Button(frameStandby, text="開始")
+        btnTaskHistory[i] = tk.Button(frameStandby, text="開始", command=startCountingFromHistory(i))
         btnTaskHistory[i].place(x=200, y=120+20*i)
+    
+    btnToggleStatusBar = tk.Button(frameStandby, text="開始", command=(lambda: startCounting(entryTaskName.get())))
+    btnToggleStatusBar.place(x=160,y=70)
+
+
     # カウント状態のフレーム
     frameCounting = tk.Frame(root, width=WINDOW_COUNTING_WIDTH, height=WINDOW_COUNTING_HEIGHT)
     buttonStop = tk.Button(frameCounting, text="停止", command=stopCounting )
