@@ -1,6 +1,8 @@
 import tkinter as tk
 from tkinter import messagebox
 from datetime import *
+import csv
+import os
 
 # ウィンドウサイズ設定
 WINDOW_STANDBY_WIDTH = 400
@@ -11,6 +13,8 @@ WINDOW_COUNTING_HEIGHT = 120
 SYSTEM_FONT_FAMILY = "Arial"
 SYSTEM_TIME_FONT_SIZE = 30
 SYSTEM_NORMAL_FONT_SIZE = 8
+
+FOLDER_NAME = "csvs"
 
 def startCounting(taskNameArg):
     global labelTime
@@ -84,10 +88,17 @@ def stopCounting():
     frameStandby.tkraise()
     isCounting = False
     refreshTaskHistories()
+    timeCountEnd = datetime.now()
 
-    timeDiff = datetime.now() - timeCountStarted
+    timeDiff = timeCountEnd - timeCountStarted
     hour, amari = divmod(timeDiff.seconds, 3600)
     min, sec = divmod(amari, 60)
+
+    #　CSVへの書き込み
+    with open(f"{FOLDER_NAME}/220710.csv", mode="a", newline="") as f:
+        data = [[taskName, (hour + min/60), timeCountStarted.strftime("%H:%M"), timeCountEnd.strftime("%H:%M")]]
+        writer = csv.writer(f)
+        writer.writerows(data)
     messagebox.showinfo("stop", f"作業:{taskName}\n稼働時間は{hour}時間{min}分です")
 
 def onExit():
@@ -103,6 +114,8 @@ if __name__ == '__main__':
     taskName = ""
     taskNameHistory = [0]*5
     taskNameHistoryTop = 0
+
+    kousuList = None
 
     root.attributes("-topmost", True)
 
@@ -137,4 +150,20 @@ if __name__ == '__main__':
     frameCounting.place(x=0, y=0)
     frameStandby.place(x=0, y=0)
     frameStandby.tkraise()
+
+    # csvの存在確認
+    if os.path.isfile(f'{FOLDER_NAME}/220710.csv'):
+        print("file exists")
+        with open(f"{FOLDER_NAME}/220710.csv", mode='r', newline='') as f:
+            csvReader = csv.reader(f)
+            kousuList = list(csvReader)
+            print(kousuList)
+    else:
+        print("file not exists")
+        # CSV読み込み
+        header = ["タスク名","作業時間", "開始時刻", "終了時刻"]
+        with open(f'{FOLDER_NAME}/220710.csv', mode='w', newline='') as f:
+            writer = csv.writer(f)
+            writer.writerow(header)
+
     root.mainloop()
