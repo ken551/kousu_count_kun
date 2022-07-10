@@ -4,7 +4,7 @@ from datetime import *
 
 # ウィンドウサイズ設定
 WINDOW_STANDBY_WIDTH = 400
-WINDOW_STANDBY_HEIGHT = 300
+WINDOW_STANDBY_HEIGHT = 250
 WINDOW_COUNTING_WIDTH = 160
 WINDOW_COUNTING_HEIGHT = 120
 
@@ -25,7 +25,7 @@ def startCounting():
     root.overrideredirect(1)
     isStatusBarShown = False
     # 最前面固定
-    root.attributes("-topmost", True)
+   # root.attributes("-topmost", True)
     frameCounting.tkraise()
 
     # 現在時刻を取得
@@ -75,7 +75,7 @@ def stopCounting():
     # ステータスバー表示
     root.overrideredirect(0)
     # 最前面固定解除
-    root.attributes("-topmost", False)
+    # root.attributes("-topmost", False)
     frameStandby.tkraise()
     isCounting = False
     refreshTaskHistories()
@@ -99,6 +99,8 @@ if __name__ == '__main__':
     taskNameHistory = [0]*5
     taskNameHistoryTop = 0
 
+    root.attributes("-topmost", True)
+
     # 待機状態のフレーム
     frameStandby = tk.Frame(root, width=WINDOW_STANDBY_WIDTH, height=WINDOW_STANDBY_HEIGHT)
     isStatusBarShown = True
@@ -109,10 +111,12 @@ if __name__ == '__main__':
     entryTaskName = tk.Entry(frameStandby, width=35)
     entryTaskName.place(x=10, y=40)
     labelTaskHistory = [0] * 5
+    btnTaskHistory = [0] * 5
     for i in range(5):
         labelTaskHistory[i] = tk.Label(frameStandby, text="-")
         labelTaskHistory[i].place(x=10, y=120+20*i)
-
+        btnTaskHistory[i] = tk.Button(frameStandby, text="開始")
+        btnTaskHistory[i].place(x=200, y=120+20*i)
     # カウント状態のフレーム
     frameCounting = tk.Frame(root, width=WINDOW_COUNTING_WIDTH, height=WINDOW_COUNTING_HEIGHT)
     buttonStop = tk.Button(frameCounting, text="停止", command=stopCounting )
