@@ -95,7 +95,7 @@ def stopCounting():
     min, sec = divmod(amari, 60)
 
     #　CSVへの書き込み
-    with open(f"{FOLDER_NAME}/220710.csv", mode="a", newline="") as f:
+    with open(f"{FOLDER_NAME}/{dateStr}.csv", mode="a", newline="") as f:
         data = [[taskName, (hour + min/60), timeCountStarted.strftime("%H:%M"), timeCountEnd.strftime("%H:%M")]]
         writer = csv.writer(f)
         writer.writerows(data)
@@ -114,6 +114,7 @@ if __name__ == '__main__':
     taskName = ""
     taskNameHistory = [0]*5
     taskNameHistoryTop = 0
+    dateStr = timeCountStarted.strftime("%Y%m%d")
 
     kousuList = None
 
@@ -152,9 +153,9 @@ if __name__ == '__main__':
     frameStandby.tkraise()
 
     # csvの存在確認
-    if os.path.isfile(f'{FOLDER_NAME}/220710.csv'):
+    if os.path.isfile(f'{FOLDER_NAME}/{dateStr}.csv'):
         print("file exists")
-        with open(f"{FOLDER_NAME}/220710.csv", mode='r', newline='') as f:
+        with open(f"{FOLDER_NAME}/{dateStr}.csv", mode='r', newline='') as f:
             csvReader = csv.reader(f)
             kousuList = list(csvReader)
             print(kousuList)
@@ -162,7 +163,7 @@ if __name__ == '__main__':
         print("file not exists")
         # CSV読み込み
         header = ["タスク名","作業時間", "開始時刻", "終了時刻"]
-        with open(f'{FOLDER_NAME}/220710.csv', mode='w', newline='') as f:
+        with open(f'{FOLDER_NAME}/{dateStr}.csv', mode='w', newline='') as f:
             writer = csv.writer(f)
             writer.writerow(header)
 
