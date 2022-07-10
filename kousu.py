@@ -137,4 +137,4 @@ if __name__ == '__main__':
     frameCounting.place(x=0, y=0)
     frameStandby.place(x=0, y=0)
     frameStandby.tkraise()
-    root.mainloop() 
+    root.mainloop()
