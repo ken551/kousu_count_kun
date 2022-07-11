@@ -1,5 +1,6 @@
 # 生成CSVファイル
 csvs/
+build/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
