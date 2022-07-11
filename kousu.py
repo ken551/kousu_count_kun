@@ -93,13 +93,21 @@ def stopCounting():
     timeDiff = timeCountEnd - timeCountStarted
     hour, amari = divmod(timeDiff.seconds, 3600)
     min, sec = divmod(amari, 60)
-
-    #　CSVへの書き込み
-    with open(f"{FOLDER_NAME}/{dateStr}.csv", mode="a", newline="") as f:
-        data = [[taskName, (hour + min/60), timeCountStarted.strftime("%H:%M"), timeCountEnd.strftime("%H:%M")]]
-        writer = csv.writer(f)
-        writer.writerows(data)
     messagebox.showinfo("stop", f"作業:{taskName}\n稼働時間は{hour}時間{min}分です")
+    try:
+        #　CSVへの書き込み
+        with open(f"{FOLDER_NAME}/{dateStr}.csv", mode="a", newline="") as f:
+            data = [[taskName, (hour + min/60), timeCountStarted.strftime("%H:%M"), timeCountEnd.strftime("%H:%M")]]
+            writer = csv.writer(f)
+            writer.writerows(data)
+    except PermissionError as e:
+        # ファイル開いてる等で書き込み失敗の場合
+        with open(f"{FOLDER_NAME}/tmp/{dateStr}_tmp.csv", mode="w", newline="") as f:
+            data = [[taskName, (hour + min/60), timeCountStarted.strftime("%H:%M"), timeCountEnd.strftime("%H:%M")]]
+            writer = csv.writer(f)
+            writer.writerows(data)
+        messagebox.showinfo("error", f"ファイル書き込みに失敗しました。（他のアプリでcsvファイルを開いていませんか？）\n tmp/{dateStr}_tmp.csv に今の記録を書き出したので、手動でマージしてください。")
+   
 
 def onExit():
     root.destroy()
