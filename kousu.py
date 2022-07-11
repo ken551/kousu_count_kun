@@ -93,20 +93,39 @@ def stopCounting():
     timeDiff = timeCountEnd - timeCountStarted
     hour, amari = divmod(timeDiff.seconds, 3600)
     min, sec = divmod(amari, 60)
-
-    #　CSVへの書き込み
-    with open(f"{FOLDER_NAME}/{dateStr}.csv", mode="a", newline="") as f:
-        data = [[taskName, (hour + min/60), timeCountStarted.strftime("%H:%M"), timeCountEnd.strftime("%H:%M")]]
-        writer = csv.writer(f)
-        writer.writerows(data)
     messagebox.showinfo("stop", f"作業:{taskName}\n稼働時間は{hour}時間{min}分です")
+    try:
+        #　CSVへの書き込み
+        with open(f"{FOLDER_NAME}/{dateStr}.csv", mode="a", newline="") as f:
+            data = [[taskName, (hour + min/60), timeCountStarted.strftime("%H:%M"), timeCountEnd.strftime("%H:%M")]]
+            writer = csv.writer(f)
+            writer.writerows(data)
+    except PermissionError as e:
+        # ファイル開いてる等で書き込み失敗の場合
+        with open(f"{FOLDER_NAME}/tmp/{dateStr}_tmp.csv", mode="w", newline="") as f:
+            data = [[taskName, (hour + min/60), timeCountStarted.strftime("%H:%M"), timeCountEnd.strftime("%H:%M")]]
+            writer = csv.writer(f)
+            writer.writerows(data)
+        messagebox.showinfo("error", f"ファイル書き込みに失敗しました。（他のアプリでcsvファイルを開いていませんか？）\n tmp/{dateStr}_tmp.csv に今の記録を書き出したので、手動でマージしてください。")
+   
 
 def onExit():
     root.destroy()
 
+def dragwin(event):
+    x = root.winfo_pointerx() - root._offsetx
+    y = root.winfo_pointery() - root._offsety
+    root.geometry('+{x}+{y}'.format(x=x,y=y))
+
+def clickwin(event):
+    root._offsetx = event.x
+    root._offsety = event.y
+
 if __name__ == '__main__':
     root = tk.Tk() 
     root.geometry(f"{WINDOW_STANDBY_WIDTH}x{WINDOW_STANDBY_HEIGHT}")
+    root._offsetx = 0
+    root._offsety = 0
 
     isColonDisplayed = True
     timeCountStarted = datetime.now()
@@ -147,6 +166,13 @@ if __name__ == '__main__':
     labelTime.place(x=0,y=50)
     labelTaskName = tk.Label(frameCounting, text="", font=f"{SYSTEM_FONT_FAMILY} {SYSTEM_NORMAL_FONT_SIZE}")
     labelTaskName.place(x=10,y=25)
+
+    # カウント状態のフレームにクリック・ドラッグのイベントをバインド
+    frameCounting.bind('<Button-1>',clickwin)
+    frameCounting.bind('<B1-Motion>',dragwin)
+    # 時間表示のラベルにもバインド（デカいため）
+    labelTime.bind('<Button-1>',clickwin)
+    labelTime.bind('<B1-Motion>',dragwin)
 
     frameCounting.place(x=0, y=0)
     frameStandby.place(x=0, y=0)
