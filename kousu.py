@@ -112,9 +112,20 @@ def stopCounting():
 def onExit():
     root.destroy()
 
+def dragwin(event):
+    x = root.winfo_pointerx() - root._offsetx
+    y = root.winfo_pointery() - root._offsety
+    root.geometry('+{x}+{y}'.format(x=x,y=y))
+
+def clickwin(event):
+    root._offsetx = event.x
+    root._offsety = event.y
+
 if __name__ == '__main__':
     root = tk.Tk() 
     root.geometry(f"{WINDOW_STANDBY_WIDTH}x{WINDOW_STANDBY_HEIGHT}")
+    root._offsetx = 0
+    root._offsety = 0
 
     isColonDisplayed = True
     timeCountStarted = datetime.now()
@@ -155,6 +166,13 @@ if __name__ == '__main__':
     labelTime.place(x=0,y=50)
     labelTaskName = tk.Label(frameCounting, text="", font=f"{SYSTEM_FONT_FAMILY} {SYSTEM_NORMAL_FONT_SIZE}")
     labelTaskName.place(x=10,y=25)
+
+    # カウント状態のフレームにクリック・ドラッグのイベントをバインド
+    frameCounting.bind('<Button-1>',clickwin)
+    frameCounting.bind('<B1-Motion>',dragwin)
+    # 時間表示のラベルにもバインド（デカいため）
+    labelTime.bind('<Button-1>',clickwin)
+    labelTime.bind('<B1-Motion>',dragwin)
 
     frameCounting.place(x=0, y=0)
     frameStandby.place(x=0, y=0)
