@@ -1,6 +1,6 @@
 import csv
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 
 
 class CsvProcessor:
@@ -26,6 +26,26 @@ class CsvProcessor:
         """一時保存用（PermissionError時）のCSVファイルパスを取得します。"""
         return os.path.join(self.tmp_folder_name, f"{date_str}_tmp.csv")
 
+    def try_read_rows_from_csv(self, filename):
+        retList = []
+        result = True
+        if os.path.isfile(filename):
+            try:
+                # BOM付きUTF-8で読み込み
+                with open(filename, mode="r", encoding="utf-8-sig", newline="") as f:
+                    csv_reader = csv.reader(f)
+                    retList = list(csv_reader)
+                    result = True
+            except Exception:
+                # フォールバック
+                with open(filename, mode="r", encoding="utf-8", newline="") as f:
+                    csv_reader = csv.reader(f)
+                    retList = list(csv_reader)
+                    result = True
+        else:
+            result = False
+        return {"result": result, "list": retList}
+
     def ensure_csv_file(self, date_str):
         """
         指定された日付のCSVファイルの存在確認を行います。
@@ -37,19 +57,13 @@ class CsvProcessor:
         """
         csv_path = self.get_csv_path(date_str)
 
-        if os.path.isfile(csv_path):
-            try:
-                # BOM付きUTF-8で読み込み
-                with open(csv_path, mode="r", encoding="utf-8-sig", newline="") as f:
-                    csv_reader = csv.reader(f)
-                    return list(csv_reader)
-            except Exception:
-                # フォールバック
-                with open(csv_path, mode="r", encoding="utf-8", newline="") as f:
-                    csv_reader = csv.reader(f)
-                    return list(csv_reader)
+        lists = self.try_read_rows_from_csv(csv_path)
+
+        if lists["result"]:
+            return lists["list"]
         else:
             # 新規作成
+
             with open(csv_path, mode="w", encoding="utf-8-sig", newline="") as f:
                 writer = csv.writer(f)
                 writer.writerow(self.header)
@@ -92,3 +106,40 @@ class CsvProcessor:
 
             # 例外を再送出してUI（kousu.py）側にポップアップ表示等のハンドリングを任せる
             raise e
+
+    def get_day_summarized(self, current_date):
+        task_sum = {}
+
+        current_date_str = current_date.strftime("%Y%m%d")
+        filename = self.get_csv_path(current_date_str)
+        res_list = self.try_read_rows_from_csv(filename)
+        if res_list["result"]:
+            # ヘッダを削除
+            del res_list["list"][0]
+            for row in res_list["list"]:
+                task_name = row[0]
+                worktime_sum = task_sum.get(task_name, 0.0)
+                worktime_sum = worktime_sum + float(row[1])
+                task_sum[task_name] = worktime_sum
+        else:
+            pass
+            # do nothing
+
+        return task_sum
+
+    def get_summarized(self, start_date_str, end_date_str):
+        task_sum = {}
+
+        start_date = datetime.strptime(start_date_str, "%Y%m%d")
+        end_date = datetime.strptime(end_date_str, "%Y%m%d")
+        current_date = start_date
+
+        while current_date <= end_date:
+            day_sum = self.get_day_summarized(current_date)
+            for taskname, tasktime in day_sum.items():
+                tmp_sum_time = task_sum.get(taskname, 0.0)
+                tmp_sum_time = tmp_sum_time + tasktime
+                task_sum[taskname] = tmp_sum_time
+            current_date += timedelta(days=1)
+
+        print(task_sum)

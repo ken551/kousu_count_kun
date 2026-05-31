@@ -52,12 +52,15 @@ class KousuApp:
 
         # 起動時のCSVファイル存在チェック（および読み込み）
         self.kousu_list = self.csv_processor.ensure_csv_file(self.date_str)
-
         # UIコンポーネントの構築
         self.create_widgets()
 
     def create_widgets(self):
         """GUIの配置を定義します。"""
+        # 集計UIを追加するため、待機画面の高さを少し広げる調整（250 -> 320）
+        self.standby_height = max(self.standby_height, 320)
+        self.root.geometry(f"{self.standby_width}x{self.standby_height}")
+
         # --- 待機状態フレーム ---
         self.frame_standby = tk.Frame(
             self.root, width=self.standby_width, height=self.standby_height
@@ -88,15 +91,44 @@ class KousuApp:
         )
         self.btn_start.place(x=160, y=70)
 
+        # ----------------------------------------------------
+        # 追加：集計UIセクション
+        # ----------------------------------------------------
+        # 区切り線代わりのラベル
+        lbl_border = tk.Label(
+            self.frame_standby,
+            text="------------------- 期間集計 -------------------",
+            fg="gray",
+        )
+        lbl_border.place(x=10, y=230)
+
+        # 開始日入力
+        lbl_start = tk.Label(self.frame_standby, text="開始日 (YYYYMMDD):")
+        lbl_start.place(x=10, y=255)
+        self.entry_start_date = tk.Entry(self.frame_standby, width=10)
+        self.entry_start_date.insert(0, self.date_str)  # 初期値として今日の日付
+        self.entry_start_date.place(x=130, y=255)
+
+        # 終了日入力
+        lbl_end = tk.Label(self.frame_standby, text="終了日 (YYYYMMDD):")
+        lbl_end.place(x=10, y=285)
+        self.entry_end_date = tk.Entry(self.frame_standby, width=10)
+        self.entry_end_date.insert(0, self.date_str)  # 初期値として今日の日付
+        self.entry_end_date.place(x=130, y=285)
+
+        # 集計実行ボタン
+        self.btn_summary = tk.Button(
+            self.frame_standby,
+            text="集計を表示",
+            command=self.show_summary,
+        )
+        self.btn_summary.place(x=230, y=265)
+        # ----------------------------------------------------
+
         # --- カウント中フレーム ---
         self.frame_counting = tk.Frame(
             self.root, width=self.counting_width, height=self.counting_height
         )
-
-        self.btn_stop = tk.Button(
-            self.frame_counting, text="停止", command=self.stop_counting
-        )
-        self.btn_stop.place(x=115, y=75)
 
         self.label_time = tk.Label(
             self.frame_counting,
@@ -112,6 +144,10 @@ class KousuApp:
             font=f"{self.font_family} {self.normal_font_size}",
         )
         self.label_task_name.place(x=10, y=5)
+        self.btn_stop = tk.Button(
+            self.frame_counting, text="停止", command=self.stop_counting
+        )
+        self.btn_stop.place(x=115, y=75)
 
         # カウント状態のフレームにドラッグ移動イベントをバインド
         self.frame_counting.bind("<Button-1>", self.click_win)
@@ -237,6 +273,62 @@ class KousuApp:
                 f"ファイル書き込みに失敗しました。（他のアプリでcsvファイルを開いていませんか？）\n"
                 f"tmp/{self.date_str}_tmp.csv に今の記録を書き出したので、手動でマージしてください。",
             )
+
+    def show_summary(self):
+        """指定された期間のタスク工数を集計してポップアップ表示します。"""
+        start_str = self.entry_start_date.get().strip()
+        end_str = self.entry_end_date.get().strip()
+
+        # 入力フォーマットのバリデーション
+        try:
+            datetime.strptime(start_str, "%Y%m%d")
+            datetime.strptime(end_str, "%Y%m%d")
+        except ValueError:
+            messagebox.showerror(
+                "エラー", "日付はYYYYMMDD形式（例: 20260531）で入力してください。"
+            )
+            return
+
+        # CsvProcessorのメソッドを利用して集計ロジックを走らせる
+        # get_summarized() は内部で print するだけで返り値を持たないため、
+        # 同様の集計ロジックをここで安全に回す、または get_day_summarized を利用します。
+        task_sum = {}
+        try:
+            start_date = datetime.strptime(start_str, "%Y%m%d")
+            end_date = datetime.strptime(end_str, "%Y%m%d")
+            current_date = start_date
+
+            while current_date <= end_date:
+                day_sum = self.csv_processor.get_day_summarized(current_date)
+                for taskname, tasktime in day_sum.items():
+                    task_sum[taskname] = task_sum.get(taskname, 0.0) + tasktime
+                current_date += math.trunc(1) * (
+                    datetime(2026, 5, 2) - datetime(2026, 5, 1)
+                )  # 1日進める
+        except Exception as e:
+            messagebox.showerror("エラー", f"集計中にエラーが発生しました:\n{e}")
+            return
+
+        # 結果のテキスト整形
+        if not task_sum:
+            msg = f"{start_str} ～ {end_str}\n該当期間のデータ（CSV）が見つかりませんでした。"
+            messagebox.showinfo("集計結果", msg)
+            return
+
+        msg = f"【集計期間】 {start_str} ～ {end_str}\n\n"
+        msg += "タスク名 : 合計時間(h)\n"
+        msg += "---------------------------------------\n"
+
+        total_all_tasks = 0.0
+        for task_name, total_time in task_sum.items():
+            msg += f"・{task_name} : {total_time:.2f} 時間\n"
+            total_all_tasks += total_time
+
+        msg += "---------------------------------------\n"
+        msg += f"総稼働時間: {total_all_tasks:.2f} 時間"
+
+        # ポップアップ表示
+        messagebox.showinfo("工数集計結果", msg)
 
     def on_exit(self):
         """アプリケーションを終了します。"""
