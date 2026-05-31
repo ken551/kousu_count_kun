@@ -9,13 +9,13 @@ class ConfigManager:
 
     DEFAULT_CONFIG = {
         "window_standby_width": 400,
-        "window_standby_height": 250,
+        "window_standby_height": 350,
         "window_counting_width": 160,
         "window_counting_height": 100,
         "system_font_family": "Arial",
         "system_time_font_size": 30,
         "system_normal_font_size": 8,
-        "round_unit_minutes": 15,  # 切り上げ/丸め単位 (分)。0の場合は丸め処理なし
+        "round_unit_minutes": 5,  # 切り上げ/丸め単位 (分)。0の場合は丸め処理なし
         "folder_name": "csvs",
     }
 
