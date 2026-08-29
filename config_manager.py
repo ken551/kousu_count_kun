@@ -11,7 +11,7 @@ class ConfigManager:
         "window_standby_width": 400,
         "window_standby_height": 350,
         "window_counting_width": 160,
-        "window_counting_height": 100,
+        "window_counting_height": 130,
         "system_font_family": "Arial",
         "system_time_font_size": 30,
         "system_normal_font_size": 8,

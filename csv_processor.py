@@ -59,15 +59,16 @@ class CsvProcessor:
 
         lists = self.try_read_rows_from_csv(csv_path)
 
-        if lists["result"]:
-            return lists["list"]
-        else:
-            # 新規作成
-
+        rows = lists["list"] if lists["result"] else []
+        # 旧版はヘッダーなしで出力していたため、既存ファイルも正規化する。
+        if not rows or rows[0] != self.header:
+            data_rows = rows if not (rows and rows[0] == self.header) else rows[1:]
             with open(csv_path, mode="w", encoding="utf-8-sig", newline="") as f:
                 writer = csv.writer(f)
                 writer.writerow(self.header)
-            return []
+                writer.writerows(data_rows)
+            return [self.header] + data_rows
+        return rows
 
     def write_record(self, date_str, task_name, duration, start_time, end_time):
         """
@@ -83,6 +84,7 @@ class CsvProcessor:
             end_time (str): 終了時刻 ("HH:MM")
         """
         csv_path = self.get_csv_path(date_str)
+        self.ensure_csv_file(date_str)
         data = [[task_name, duration, start_time, end_time]]
 
         try:
@@ -114,9 +116,12 @@ class CsvProcessor:
         filename = self.get_csv_path(current_date_str)
         res_list = self.try_read_rows_from_csv(filename)
         if res_list["result"]:
-            # ヘッダを削除
-            del res_list["list"][0]
-            for row in res_list["list"]:
+            rows = res_list["list"]
+            if rows and rows[0] == self.header:
+                rows = rows[1:]
+            for row in rows:
+                if len(row) < 2:
+                    continue
                 task_name = row[0]
                 worktime_sum = task_sum.get(task_name, 0.0)
                 worktime_sum = worktime_sum + float(row[1])
