@@ -1,4 +1,4 @@
-<<<<<<< Updated upstream
+'''
 import calendar
 import math
 import os
@@ -488,7 +488,7 @@ if __name__ == "__main__":
     root = tk.Tk()
     app = KousuApp(root)
     root.mainloop()
-=======
+'''
 import calendar
 import math
 import os
@@ -514,8 +514,13 @@ def rounded_hours(start, end, unit_minutes=0):
     return seconds / 3600.0
 
 
-def parse_datetime(value):
-    return datetime.strptime(value.strip(), "%Y-%m-%d %H:%M")
+def parse_time_today(value, now=None):
+    """HH:MM を今日の日付の datetime に変換する。"""
+    current = now or datetime.now()
+    parsed = datetime.strptime(value.strip(), "%H:%M")
+    return current.replace(
+        hour=parsed.hour, minute=parsed.minute, second=0, microsecond=0
+    )
 
 
 class CalendarDialog(tk.Toplevel):
@@ -635,8 +640,10 @@ class KousuApp:
         # 時間丸め設定
         self.round_unit_minutes = self.config.get("round_unit_minutes", 15)
 
-        # ウィンドウの基本設定（枠なし、最前面）
-        self.root.overrideredirect(True)
+        # 通常のウィンドウとして表示し、Windowsのタスクバーに登録する。
+        # 最前面表示も維持して、背面に隠れた場合でも見失いにくくする。
+        self.root.title("工数カウントくん")
+        self.root.overrideredirect(False)
         self.root.attributes("-topmost", True)
 
         # 状態管理変数
@@ -917,13 +924,13 @@ class KousuApp:
         return lambda: self.start_counting(self.label_task_history[index].cget("text"))
 
     def start_counting_with_time(self):
-        value = simpledialog.askstring("開始時刻", "記録上の開始時刻 (YYYY-MM-DD HH:MM):", parent=self.root)
+        value = simpledialog.askstring("開始時刻", "記録上の開始時刻 (HH:MM):", parent=self.root)
         if value is None:
             return
         try:
-            start = parse_datetime(value)
+            start = parse_time_today(value)
         except ValueError:
-            messagebox.showerror("エラー", "YYYY-MM-DD HH:MM 形式で入力してください。")
+            messagebox.showerror("エラー", "HH:MM 形式で入力してください。")
             return
         self.start_counting(self.entry_task_name.get(), start)
 
@@ -991,8 +998,8 @@ class KousuApp:
                 date_str=self.time_count_started.strftime("%Y%m%d"),
                 task_name=self.task_name,
                 duration=rounded_hours,
-                start_time=self.time_count_started.strftime("%Y-%m-%d %H:%M:%S"),
-                end_time=time_count_end.strftime("%Y-%m-%d %H:%M:%S"),
+                start_time=self.time_count_started.strftime("%H:%M"),
+                end_time=time_count_end.strftime("%H:%M"),
             )
         except PermissionError:
             messagebox.showinfo(
@@ -1005,13 +1012,13 @@ class KousuApp:
         self.show_standby_frame()
 
     def stop_counting_with_time(self):
-        value = simpledialog.askstring("終了時刻", "記録上の終了時刻 (YYYY-MM-DD HH:MM):", parent=self.root)
+        value = simpledialog.askstring("終了時刻", "記録上の終了時刻 (HH:MM):", parent=self.root)
         if value is None:
             return
         try:
-            end = parse_datetime(value)
+            end = parse_time_today(value)
         except ValueError:
-            messagebox.showerror("エラー", "YYYY-MM-DD HH:MM 形式で入力してください。")
+            messagebox.showerror("エラー", "HH:MM 形式で入力してください。")
             return
         if end < self.time_count_started:
             messagebox.showerror("エラー", "終了時刻は開始時刻以降にしてください。")
@@ -1070,4 +1077,3 @@ if __name__ == "__main__":
     root = tk.Tk()
     app = KousuApp(root)
     root.mainloop()
->>>>>>> Stashed changes
