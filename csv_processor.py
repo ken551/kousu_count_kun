@@ -18,6 +18,40 @@ class CsvProcessor:
 
         self.header = ["タスク名", "作業時間", "開始時刻", "終了時刻"]
 
+    @staticmethod
+    def format_duration(duration_hours):
+        """時間単位の値をCSV用の ``HH:MM`` 形式へ変換します。"""
+        total_minutes = max(0, round(float(duration_hours) * 60))
+        hours, minutes = divmod(total_minutes, 60)
+        return f"{hours:02d}:{minutes:02d}"
+
+    @staticmethod
+    def parse_duration(value):
+        """HH:MM形式と旧形式（時間単位の小数）の両方を分へ変換します。"""
+        value = str(value).strip()
+        if ":" in value:
+            hours, minutes = value.split(":", 1)
+            return int(hours) * 60 + int(minutes)
+        return round(float(value) * 60)
+
+    def normalize_rows(self, rows):
+        """既存行の作業時間をCSVの標準形式へ変換します。"""
+        normalized = []
+        changed = False
+        for row in rows:
+            row = list(row)
+            if len(row) >= 2:
+                try:
+                    duration = self.format_duration(self.parse_duration(row[1]) / 60.0)
+                    if row[1] != duration:
+                        row[1] = duration
+                        changed = True
+                except (TypeError, ValueError):
+                    # 壊れた行は削除せず、そのまま保持して後続処理に委ねる。
+                    pass
+            normalized.append(row)
+        return normalized, changed
+
     def get_csv_path(self, date_str):
         """日付ごとのCSVファイルパスを取得します。"""
         return os.path.join(self.folder_name, f"{date_str}.csv")
@@ -63,6 +97,14 @@ class CsvProcessor:
         # 旧版はヘッダーなしで出力していたため、既存ファイルも正規化する。
         if not rows or rows[0] != self.header:
             data_rows = rows if not (rows and rows[0] == self.header) else rows[1:]
+            data_rows, _ = self.normalize_rows(data_rows)
+            with open(csv_path, mode="w", encoding="utf-8-sig", newline="") as f:
+                writer = csv.writer(f)
+                writer.writerow(self.header)
+                writer.writerows(data_rows)
+            return [self.header] + data_rows
+        data_rows, changed = self.normalize_rows(rows[1:])
+        if changed:
             with open(csv_path, mode="w", encoding="utf-8-sig", newline="") as f:
                 writer = csv.writer(f)
                 writer.writerow(self.header)
@@ -79,13 +121,16 @@ class CsvProcessor:
         Args:
             date_str (str): 日付文字列 (YYYYMMDD)
             task_name (str): タスク名
-            duration (float): 作業時間（時間単位、例: 1.5）
+            duration (float): 作業時間（時間単位、例: 1.5）。CSVにはHH:MMで保存します。
             start_time (str): 開始時刻 ("HH:MM")
             end_time (str): 終了時刻 ("HH:MM")
         """
         csv_path = self.get_csv_path(date_str)
         self.ensure_csv_file(date_str)
-        data = [[task_name, duration, start_time, end_time]]
+        # 入力が文字列でも正規化し、CSVの記録形式を常に統一する。
+        start_time = datetime.strptime(str(start_time).strip(), "%H:%M").strftime("%H:%M")
+        end_time = datetime.strptime(str(end_time).strip(), "%H:%M").strftime("%H:%M")
+        data = [[task_name, self.format_duration(duration), start_time, end_time]]
 
         try:
             # Excelでの日本語文字化け防止のためutf-8-sigを使用
@@ -124,7 +169,7 @@ class CsvProcessor:
                     continue
                 task_name = row[0]
                 worktime_sum = task_sum.get(task_name, 0.0)
-                worktime_sum = worktime_sum + float(row[1])
+                worktime_sum += self.parse_duration(row[1]) / 60.0
                 task_sum[task_name] = worktime_sum
         else:
             pass
@@ -147,4 +192,4 @@ class CsvProcessor:
                 task_sum[taskname] = tmp_sum_time
             current_date += timedelta(days=1)
 
-        print(task_sum)
+        return task_sum

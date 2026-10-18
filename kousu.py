@@ -499,9 +499,6 @@ from tkinter import messagebox, simpledialog, ttk
 from config_manager import ConfigManager
 from csv_processor import CsvProcessor
 
-IDLE_NOTICE_SECONDS = 15 * 60
-
-
 def seconds_between(start, end):
     """開始・終了時刻から経過秒数を求める（スリープ復帰後も正しい）。"""
     return max(0.0, (end - start).total_seconds())
@@ -639,6 +636,9 @@ class KousuApp:
 
         # 時間丸め設定
         self.round_unit_minutes = self.config.get("round_unit_minutes", 15)
+        self.idle_notice_seconds = max(
+            0, float(self.config.get("idle_notice_minutes", 1)) * 60
+        )
 
         # 通常のウィンドウとして表示し、Windowsのタスクバーに登録する。
         # 最前面表示も維持して、背面に隠れた場合でも見失いにくくする。
@@ -1033,7 +1033,7 @@ class KousuApp:
     def check_idle(self):
         if not self.is_counting:
             idle_seconds = seconds_between(self.idle_started_at, datetime.now())
-            if idle_seconds >= IDLE_NOTICE_SECONDS and not self.idle_notice_sent:
+            if idle_seconds >= self.idle_notice_seconds and not self.idle_notice_sent:
                 self.idle_notice_sent = True
                 self.root.bell()
                 self.flash_taskbar()

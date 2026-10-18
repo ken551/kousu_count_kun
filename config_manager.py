@@ -16,6 +16,7 @@ class ConfigManager:
         "system_time_font_size": 30,
         "system_normal_font_size": 8,
         "round_unit_minutes": 5,  # 切り上げ/丸め単位 (分)。0の場合は丸め処理なし
+        "idle_notice_minutes": 1,  # 待機中に通知するまでの時間 (分)
         "folder_name": "csvs",
     }
 
