@@ -3,6 +3,10 @@ import os
 from datetime import datetime, timedelta
 
 
+class MixedDurationFormatError(ValueError):
+    """集計対象CSV内で作業時間の表記単位が混在した場合のエラー。"""
+
+
 class CsvProcessor:
     """
     作業工数データのCSV保存・読み込みを専門に行うクラス。
@@ -30,9 +34,51 @@ class CsvProcessor:
         """HH:MM形式と旧形式（時間単位の小数）の両方を分へ変換します。"""
         value = str(value).strip()
         if ":" in value:
-            hours, minutes = value.split(":", 1)
-            return int(hours) * 60 + int(minutes)
+            parts = value.split(":")
+            if len(parts) != 2:
+                raise ValueError(f"不正なHH:MM形式です: {value}")
+            hours, minutes = parts
+            minutes = int(minutes)
+            if not 0 <= minutes < 60:
+                raise ValueError(f"分が不正です: {value}")
+            return int(hours) * 60 + minutes
         return round(float(value) * 60)
+
+    @staticmethod
+    def duration_format(value):
+        """作業時間の表記形式を返します（``hours`` または ``hhmm``）。"""
+        value = str(value).strip()
+        return "hhmm" if ":" in value else "hours"
+
+    @classmethod
+    def format_minutes(cls, minutes):
+        """分を集計画面用の ``HH:mm`` 表示へ変換します。"""
+        total_minutes = max(0, round(minutes))
+        hours, minutes = divmod(total_minutes, 60)
+        return f"{hours:02d}:{minutes:02d}"
+
+    def _data_rows_for_date(self, current_date):
+        filename = self.get_csv_path(current_date.strftime("%Y%m%d"))
+        result = self.try_read_rows_from_csv(filename)
+        if not result["result"]:
+            return []
+        rows = result["list"]
+        if rows and rows[0] == self.header:
+            rows = rows[1:]
+        return [row for row in rows if len(row) >= 2]
+
+    def _validate_duration_formats(self, rows, expected_format=None):
+        formats = set()
+        for row in rows:
+            current_format = self.duration_format(row[1])
+            # parse_durationで形式だけでなく値そのものも検証する。
+            self.parse_duration(row[1])
+            formats.add(current_format)
+        if len(formats) > 1 or (expected_format and formats and expected_format not in formats):
+            raise MixedDurationFormatError(
+                "集計対象CSVの作業時間は、h単位またはHH:mm形式のどちらか一方に統一してください。"
+            )
+        return next(iter(formats), expected_format)
 
     def normalize_rows(self, rows):
         """既存行の作業時間をCSVの標準形式へ変換します。"""
@@ -59,6 +105,11 @@ class CsvProcessor:
     def get_tmp_csv_path(self, date_str):
         """一時保存用（PermissionError時）のCSVファイルパスを取得します。"""
         return os.path.join(self.tmp_folder_name, f"{date_str}_tmp.csv")
+
+    def get_latest_record(self, date_str):
+        """指定日のCSVから直近の完全な記録を返します。"""
+        rows = self._data_rows_for_date(datetime.strptime(date_str, "%Y%m%d"))
+        return rows[-1] if rows else None
 
     def try_read_rows_from_csv(self, filename):
         retList = []
@@ -157,23 +208,13 @@ class CsvProcessor:
     def get_day_summarized(self, current_date):
         task_sum = {}
 
-        current_date_str = current_date.strftime("%Y%m%d")
-        filename = self.get_csv_path(current_date_str)
-        res_list = self.try_read_rows_from_csv(filename)
-        if res_list["result"]:
-            rows = res_list["list"]
-            if rows and rows[0] == self.header:
-                rows = rows[1:]
-            for row in rows:
-                if len(row) < 2:
-                    continue
-                task_name = row[0]
-                worktime_sum = task_sum.get(task_name, 0.0)
-                worktime_sum += self.parse_duration(row[1]) / 60.0
-                task_sum[task_name] = worktime_sum
-        else:
-            pass
-            # do nothing
+        rows = self._data_rows_for_date(current_date)
+        self._validate_duration_formats(rows)
+        for row in rows:
+            task_name = row[0]
+            worktime_sum = task_sum.get(task_name, 0.0)
+            worktime_sum += self.parse_duration(row[1]) / 60.0
+            task_sum[task_name] = worktime_sum
 
         return task_sum
 
@@ -183,9 +224,15 @@ class CsvProcessor:
         start_date = datetime.strptime(start_date_str, "%Y%m%d")
         end_date = datetime.strptime(end_date_str, "%Y%m%d")
         current_date = start_date
+        duration_format = None
 
         while current_date <= end_date:
-            day_sum = self.get_day_summarized(current_date)
+            rows = self._data_rows_for_date(current_date)
+            duration_format = self._validate_duration_formats(rows, duration_format)
+            day_sum = {}
+            for row in rows:
+                task_name = row[0]
+                day_sum[task_name] = day_sum.get(task_name, 0.0) + self.parse_duration(row[1]) / 60.0
             for taskname, tasktime in day_sum.items():
                 tmp_sum_time = task_sum.get(taskname, 0.0)
                 tmp_sum_time = tmp_sum_time + tasktime

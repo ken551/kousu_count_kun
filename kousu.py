@@ -712,6 +712,13 @@ class KousuApp:
         self.btn_start_at = tk.Button(self.frame_standby, text="開始時刻を指定", command=self.start_counting_with_time)
         self.btn_start_at.place(x=235, y=70)
 
+        self.btn_start_from_previous = tk.Button(
+            self.frame_standby,
+            text="前の時間から",
+            command=self.start_counting_from_previous_time,
+        )
+        self.btn_start_from_previous.place(x=235, y=105)
+
         # --- 期間集計UI（待機画面の下部） ---
         lbl_border = tk.Label(
             self.frame_standby,
@@ -797,7 +804,7 @@ class KousuApp:
 
         # 列のヘッダー名と幅・アライメントの設定
         self.tree_summary.heading("task", text="タスク名")
-        self.tree_summary.heading("time", text="合計時間 (h)")
+        self.tree_summary.heading("time", text="合計時間 (HH:mm)")
 
         self.tree_summary.column("task", width=240, anchor=tk.W)  # 左寄せ
         self.tree_summary.column("time", width=100, anchor=tk.E)  # 右寄せ
@@ -836,14 +843,11 @@ class KousuApp:
             messagebox.showerror("エラー", "日付はYYYYMMDD形式で指定してください。")
             return
 
-        # 期間ループを回して集計
-        task_sum = {}
-        current_date = start_date
-        while current_date <= end_date:
-            day_sum = self.csv_processor.get_day_summarized(current_date)
-            for taskname, tasktime in day_sum.items():
-                task_sum[taskname] = task_sum.get(taskname, 0.0) + tasktime
-            current_date += timedelta(days=1)
+        try:
+            task_sum = self.csv_processor.get_summarized(start_str, end_str)
+        except ValueError as error:
+            messagebox.showerror("エラー", str(error))
+            return
 
         # 集計結果フレームの表示に切り替え
         self.frame_standby.pack_forget()
@@ -859,8 +863,8 @@ class KousuApp:
         self.lbl_summary_title.config(text=f"【工数集計結果】 {start_str} ～ {end_str}")
 
         if not task_sum:
-            self.tree_summary.insert("", tk.END, values=("（データなし）", "0.00"))
-            self.lbl_total_all.config(text="総計稼働時間: 0.00 時間")
+            self.tree_summary.insert("", tk.END, values=("（データなし）", "00:00"))
+            self.lbl_total_all.config(text="総計稼働時間: 00:00")
             return
 
         # データを表に挿入
@@ -870,11 +874,15 @@ class KousuApp:
         )
         for name, time_val in task_sum_sorted.items():
             # valuesにタプルで渡すことで各列に綺麗に収まります
-            self.tree_summary.insert("", tk.END, values=(name, f"{time_val:.2f}"))
+            self.tree_summary.insert(
+                "", tk.END, values=(name, self.csv_processor.format_minutes(time_val * 60))
+            )
             total_all += time_val
 
         # 総計ラベルの更新
-        self.lbl_total_all.config(text=f"総計稼働時間: {total_all:.2f} 時間")
+        self.lbl_total_all.config(
+            text=f"総計稼働時間: {self.csv_processor.format_minutes(total_all * 60)}"
+        )
 
     def show_standby_frame(self):
         """待機画面フレームを表示します。履歴も自動更新します。"""
@@ -933,6 +941,22 @@ class KousuApp:
             messagebox.showerror("エラー", "HH:MM 形式で入力してください。")
             return
         self.start_counting(self.entry_task_name.get(), start)
+
+    def start_counting_from_previous_time(self):
+        """直近タスクの終了時刻を開始時刻としてカウントを開始します。"""
+        latest = self.csv_processor.get_latest_record(self.date_str)
+        if not latest:
+            messagebox.showwarning("warning", "直近のタスクがありません。")
+            return
+        try:
+            previous_start = parse_time_today(latest[2], datetime.strptime(self.date_str, "%Y%m%d"))
+            previous_end = parse_time_today(latest[3], datetime.strptime(self.date_str, "%Y%m%d"))
+            if previous_end < previous_start:
+                previous_end += timedelta(days=1)
+        except (IndexError, ValueError):
+            messagebox.showerror("エラー", "直近タスクの時刻が不正です。")
+            return
+        self.start_counting(self.entry_task_name.get(), previous_end)
 
     def start_counting(self, task_name, start_time=None):
         """タイマーカウントを開始します。"""

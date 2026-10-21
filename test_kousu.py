@@ -129,6 +129,34 @@ class CsvProcessorTests(unittest.TestCase):
                 {"調査": 0.75, "実装": 1.0},
             )
 
+    def test_period_summary_rejects_mixed_duration_formats(self):
+        with tempfile.TemporaryDirectory() as directory:
+            processor = CsvProcessor(directory)
+            first = Path(directory) / "20260830.csv"
+            second = Path(directory) / "20260831.csv"
+            for path, duration in ((first, "0.5"), (second, "00:30")):
+                with path.open("w", encoding="utf-8-sig", newline="") as f:
+                    writer = csv.writer(f)
+                    writer.writerow(processor.header)
+                    writer.writerow(["調査", duration, "10:00", "10:30"])
+
+            with self.assertRaises(ValueError):
+                processor.get_summarized("20260830", "20260831")
+
+    def test_format_minutes_returns_hhmm(self):
+        self.assertEqual(CsvProcessor.format_minutes(90), "01:30")
+        self.assertEqual(CsvProcessor.format_minutes(1500), "25:00")
+
+    def test_latest_record_is_returned(self):
+        with tempfile.TemporaryDirectory() as directory:
+            processor = CsvProcessor(directory)
+            processor.write_record("20260830", "最初", 0.5, "10:00", "10:30")
+            processor.write_record("20260830", "最後", 0.25, "11:00", "11:15")
+            self.assertEqual(
+                processor.get_latest_record("20260830"),
+                ["最後", "00:15", "11:00", "11:15"],
+            )
+
     def test_missing_day_is_an_empty_summary(self):
         with tempfile.TemporaryDirectory() as directory:
             processor = CsvProcessor(directory)
@@ -218,6 +246,22 @@ class KousuAppLogicTests(unittest.TestCase):
         app.csv_processor.write_record.assert_not_called()
         self.assertFalse(app.is_counting)
         app.show_standby_frame.assert_called_once_with()
+
+    def test_start_from_previous_time_uses_latest_end_time(self):
+        app = KousuApp.__new__(KousuApp)
+        app.date_str = "20260830"
+        app.csv_processor = Mock()
+        app.csv_processor.get_latest_record.return_value = [
+            "調査", "00:30", "10:00", "10:30"
+        ]
+        app.entry_task_name = Mock()
+        app.entry_task_name.get.return_value = "実装"
+        app.start_counting = Mock()
+        app.start_counting_from_previous_time()
+
+        app.start_counting.assert_called_once_with(
+            "実装", datetime(2026, 8, 30, 10, 30)
+        )
 
 
 if __name__ == "__main__":
